@@ -51,26 +51,26 @@ function savePhotos(data) {
   console.log('✅ photos.json mis à jour avec', data.length, 'photos');
 }
 
-// 📥 Route POST pour upload d'image
-app.post('/api/photos', upload.single('photo'), (req, res) => {
+// 📥 Route POST pour upload d'imageapp.post('/api/photos', upload.single('photo'), (req, res) => {
   const photos = readPhotos();
 
-  const baseURL = 'https://backend-only-iozr.onrender.com';
+  const baseURL = 'https://backend-only-iozr.onrender.com'; // ✅ ton vrai domaine Render
 
   const newPhoto = {
     IdP: photos.length + 1,
-    PhotoURL: `${baseURL}/uploads/${req.file.filename}`,
+    PhotoURL: `${baseURL}/uploads/${req.file.filename}`,     // ✅ lien public
     PhotoDescription: req.body.description || req.file.originalname,
     PhotoDate: new Date(),
     likes: 0,
     comments: []
-  };  
+  };
 
   photos.push(newPhoto);
   savePhotos(photos);
 
   res.status(201).json(newPhoto);
 });
+
 
 // 📤 Route GET pour récupérer toutes les photos
 app.get('/api/photos', (req, res) => {
