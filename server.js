@@ -55,9 +55,11 @@ function savePhotos(data) {
 app.post('/api/photos', upload.single('photo'), (req, res) => {
   const photos = readPhotos();
 
+  const baseURL = 'https://backend-only-iozr.onrender.com';
+
   const newPhoto = {
     IdP: photos.length + 1,
-    PhotoURL: `http://localhost:${PORT}/uploads/${req.file.filename}`,
+    PhotoURL: `${baseURL}/uploads/${req.file.filename}`,
     PhotoDescription: req.body.description || req.file.originalname,
     PhotoDate: new Date(),
     likes: 0,
