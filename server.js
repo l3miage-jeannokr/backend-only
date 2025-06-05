@@ -2,67 +2,58 @@ const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
 const cors = require('cors');
+const { v2: cloudinary } = require('cloudinary');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static('uploads')); // pour servir les images
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/'); // dossier où les images seront stockées
-  },
-  filename: function (req, file, cb) {
-    const uniqueName = Date.now() + '-' + file.originalname;
-    cb(null, uniqueName);
-  }
+// 🔐 Configuration Cloudinary
+cloudinary.config({
+  cloud_name: 'dpkztx3hj',
+  api_key: '577825446418914',
+  api_secret: 'Qx2ENIdZaYGpI1hHRlTVEMe4drI'
 });
 
-const upload = multer({ storage: storage });
+// 📁 Multer + stockage cloudinary
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'perso_project', // Dossier sur Cloudinary
+    allowed_formats: ['jpg', 'png', 'jpeg']
+  }
+});
+const upload = multer({ storage });
 
-// Simule une base de données JSON
+// 📂 Base de données JSON
 const DB_FILE = './photos.json';
-function normalizePhoto(p) {
-  return {
-    ...p,
-    likes: typeof p.likes === 'number' ? p.likes : 0,
-    comments: Array.isArray(p.comments) ? p.comments : []
-  };
-}
 
 function readPhotos() {
   if (fs.existsSync(DB_FILE)) {
-    const raw = JSON.parse(fs.readFileSync(DB_FILE));
-    const normalized = raw.map(normalizePhoto);
-    savePhotos(normalized); // 👈 met à jour le fichier avec les bons champs
-    return normalized;
+    return JSON.parse(fs.readFileSync(DB_FILE));
   }
   return [];
 }
 
-const photos = readPhotos();
-savePhotos(photos); // ← met à jour les anciennes entrées
-
-
-
 function savePhotos(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
-  console.log('✅ photos.json mis à jour avec', data.length, 'photos');
 }
 
-// 📥 Route POST pour upload d'image
+// 📥 Upload via Cloudinary
 app.post('/api/photos', upload.single('photo'), (req, res) => {
   const photos = readPhotos();
 
   const newPhoto = {
     IdP: photos.length + 1,
-    PhotoURL: `http://localhost:${PORT}/uploads/${req.file.filename}`,
+    PhotoURL: req.file.path, // ✅ URL Cloudinary
     PhotoDescription: req.body.description || req.file.originalname,
     PhotoDate: new Date(),
     likes: 0,
     comments: []
-  };  
+  };
 
   photos.push(newPhoto);
   savePhotos(photos);
@@ -70,32 +61,31 @@ app.post('/api/photos', upload.single('photo'), (req, res) => {
   res.status(201).json(newPhoto);
 });
 
-// 📤 Route GET pour récupérer toutes les photos
+// 📤 Récupérer toutes les photos
 app.get('/api/photos', (req, res) => {
   const photos = readPhotos();
   res.json(photos);
 });
 
-app.listen(PORT, () => {
-  console.log(`Serveur démarré sur http://localhost:${PORT}`);
-});
-// PATCH /api/photos/:id — met à jour les likes ou commentaires
+// 🔁 PATCH pour likes/comments
 app.patch('/api/photos/:id', (req, res) => {
   const photos = readPhotos();
-  const id = parseInt(req.params.id.trim()); // ⬅️ trim indispensable
-
+  const id = parseInt(req.params.id.trim());
   const index = photos.findIndex(p => p.IdP === id);
 
   if (index === -1) {
-    console.log(`❌ Photo ID ${id} non trouvée`);
     return res.status(404).json({ error: 'Photo non trouvée' });
   }
 
   const { likes, comments } = req.body;
-
   if (likes !== undefined) photos[index].likes = likes;
   if (comments !== undefined) photos[index].comments = comments;
 
   savePhotos(photos);
   res.json(photos[index]);
+});
+
+// 🚀 Lancement du serveur
+app.listen(PORT, () => {
+  console.log(`✅ Serveur démarré sur port ${PORT}`);
 });
